@@ -21,7 +21,7 @@ import * as sanitize from 'sanitize-html';
 import { Emitter } from '@theia/core/lib/common/event';
 import { CancellationToken, CancellationTokenSource } from '@theia/core/lib/common/cancellation';
 import { VSXRegistryAPI, VSXResponseError } from '../common/vsx-registry-api';
-import { VSXSearchParam } from '../common/vsx-registry-types';
+import { VSXExtensionRaw, VSXSearchParam } from '../common/vsx-registry-types';
 import { HostedPluginSupport } from '@theia/plugin-ext/lib/hosted/browser/hosted-plugin';
 import { VSXExtension, VSXExtensionFactory } from './vsx-extension';
 import { ProgressService } from '@theia/core/lib/common/progress-service';
@@ -217,7 +217,7 @@ export class VSXExtensionsModel {
 
     protected async refresh(id: string): Promise<VSXExtension | undefined> {
         try {
-            const data = await this.api.getLatestCompatibleExtensionVersion(id);
+            const data = await this.getExtensionData(id);
             if (!data) {
                 return;
             }
@@ -247,6 +247,25 @@ export class VSXExtensionsModel {
         }
         console.error(`[${id}]: failed to refresh, reason:`, error);
         return undefined;
+    }
+
+    protected isBuiltin(id: string): boolean {
+        const extension = this.getExtension(id);
+        return extension?.builtin || false;
+    }
+
+    /**
+     * Get the extension data if it exists.
+     * - If the extension is a builtin, no compatibility check is performed.
+     * - If the extension is not a builtin, the latest compatible version should be fetched.
+     * @param id the extension id.
+     *
+     * @returns the extension data if it exists.
+     */
+    protected async getExtensionData(id: string): Promise<VSXExtensionRaw | undefined> {
+        return this.isBuiltin(id)
+            ? this.api.getExtension(id)
+            : this.api.getLatestCompatibleExtensionVersion(id);
     }
 
     /**
